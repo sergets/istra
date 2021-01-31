@@ -69,7 +69,7 @@ const writeRangedValToFile = (fileName, range, val) => readRawLogFromFile(fileNa
         return fs.writeFile(fileName, Buffer.from(data.buffer, data.byteOffset, data.length * 2));
     });
 
-app.get('/', res.send('welcome to istra'));
+app.get('/', (req, res) => res.send('welcome to istra'));
 
 app.get('/t(/:date?)', (req, res) => {
     const { date } = req.params;
