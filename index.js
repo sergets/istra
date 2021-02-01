@@ -6,7 +6,7 @@ const STEP_SIZE = (process.env.STEP_SIZE || 10) * 1000;
 const T_RANGE = [-80, 80];
 
 const VAL_SIZE = Math.pow(256, Uint16Array.BYTES_PER_ELEMENT);
-const PRECISION = Math.pow(10, -Math.round(Math.log((T_RANGE[1] - T_RANGE[0]) / VAL_SIZE) / Math.log(10)));
+const PRECISION = process.env.PRECISION || Math.pow(10, -Math.round(Math.log((T_RANGE[1] - T_RANGE[0]) / VAL_SIZE) / Math.log(10)));
 
 const app = express();
 app.use(express.text({ type: () => true }));
@@ -18,20 +18,29 @@ const readRawLogFromFile = fileName => Promise.all([
     fs.stat(fileName)
 ]).then(([ file, stat ]) => ({
     data: new Uint16Array(file.buffer, file.byteOffset, file.length/2),
-    stepsAgo: Math.round((new Date() - stat.mtimeMs) / STEP_SIZE)
+    stepsAgo: Math.round((new Date() - stat.mtimeMs) / STEP_SIZE),
+    ts: Math.round(stat.mtimeMs / 1000)
 })).catch(() => ({
     data: new Uint16Array(0),
-    stepsAgo: 0
+    stepsAgo: 0,
+    ts: 0
 }));
 
 const readRangedLogFromFile = (fileName, range) => readRawLogFromFile(fileName)
-    .then(({ data, stepsAgo }) => []
-        .map.call(data, (val, i) => i % 2 ? val :
-            val === 0 ? null :
-            Math.round((range[0] + val / VAL_SIZE * (range[1] - range[0])) * PRECISION) / PRECISION)
-        .concat(stepsAgo > 1 ? [null, stepsAgo - 1] : [])
-    )
-    .catch(() => []);
+    .then(({ data, stepsAgo, ts }) => ({
+        ts,
+        data: [].map.call(data, (val, i) => {
+            if (!(i % 2)) {
+                const v = val === 0 ? null : Math.round((range[0] + val / VAL_SIZE * (range[1] - range[0])) * PRECISION) / PRECISION;
+                if (data[i + 1] > 1) {
+                    return [v, data[i + 1]];
+                }
+                return v;
+            }
+        })
+        .filter(x => x !== undefined)
+    }))
+    .catch(() => ({ ts: 0, data: [] }));
 
 const writeRangedValToFile = (fileName, range, val) => readRawLogFromFile(fileName)
     .then(({ data, stepsAgo }) => {
@@ -77,9 +86,8 @@ app.get('/t(/:date?)', (req, res) => {
 
     readRangedLogFromFile(DATA_DIR + '/' + fn, T_RANGE)
         .then(s => res
-            .set('Content-type', 'application/json')
             .set('Access-Control-Allow-Origin', '*')
-            .send(s)
+            .json(s)
         );
 });
 
