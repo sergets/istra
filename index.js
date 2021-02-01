@@ -29,7 +29,7 @@ const readRawLogFromFile = fileName => Promise.all([
 const readRangedLogFromFile = (fileName, range) => readRawLogFromFile(fileName)
     .then(({ data, stepsAgo, ts }) => ({
         ts,
-        data: [].map.call(data, (val, i) => {
+        t: [].map.call(data, (val, i) => {
             if (!(i % 2)) {
                 const v = val === 0 ? null : Math.round((range[0] + val / VAL_SIZE * (range[1] - range[0])) * PRECISION) / PRECISION;
                 if (data[i + 1] > 1) {
@@ -40,7 +40,7 @@ const readRangedLogFromFile = (fileName, range) => readRawLogFromFile(fileName)
         })
         .filter(x => x !== undefined)
     }))
-    .catch(() => ({ ts: 0, data: [] }));
+    .catch(() => ({ ts: 0, t: [] }));
 
 const writeRangedValToFile = (fileName, range, val) => readRawLogFromFile(fileName)
     .then(({ data, stepsAgo }) => {
