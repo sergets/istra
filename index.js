@@ -3,7 +3,7 @@ const express = require('express');
 const DATA_DIR = './data';
 
 const STEP_SIZE = (process.env.STEP_SIZE || 10) * 1000;
-const T_RANGE = [-80, 80];
+const T_RANGE = [-100, 555.36];
 
 const VAL_SIZE = Math.pow(256, Uint16Array.BYTES_PER_ELEMENT);
 const PRECISION = process.env.PRECISION || Math.pow(10, -Math.round(Math.log((T_RANGE[1] - T_RANGE[0]) / VAL_SIZE) / Math.log(10)));
