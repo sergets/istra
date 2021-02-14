@@ -1,115 +1,98 @@
-const fs = require('fs').promises;
+const yadisk = require('./yadisk');
+const encoder = require('./encoder');
 const express = require('express');
-const DATA_DIR = './data';
+const fetch = require('node-fetch');
 
-const STEP_SIZE = (process.env.STEP_SIZE || 10) * 1000;
-const T_RANGE = [-100, 555.36];
-
-const VAL_SIZE = Math.pow(256, Uint16Array.BYTES_PER_ELEMENT);
-const PRECISION = process.env.PRECISION || Math.pow(10, -Math.round(Math.log((T_RANGE[1] - T_RANGE[0]) / VAL_SIZE) / Math.log(10)));
+const STEP = (process.env.STEP || 10) * 1000;
 
 const app = express();
 app.use(express.text({ type: () => true }));
 
-const getFileName = () => (new Date()).toISOString().substr(0, 10);
+const getFileName = (v) => v + (new Date()).toISOString().substr(0, 10);
+const getDayStartTs = () => {
+    const p = new Date();
+    p.setUTCHours(0);
+    p.setUTCMinutes(0);
+    p.setUTCSeconds(0);
+    p.setUTCMilliseconds(0);
+    return Math.round(p / 1000);
+};
 
-const readRawLogFromFile = fileName => Promise.all([
-    fs.readFile(fileName),
-    fs.stat(fileName)
-]).then(([ file, stat ]) => ({
-    data: new Uint16Array(file.buffer, file.byteOffset, file.length/2),
-    stepsAgo: Math.round((new Date() - stat.mtimeMs) / STEP_SIZE),
-    ts: Math.round(stat.mtimeMs / 1000)
-})).catch(() => ({
-    data: new Uint16Array(0),
-    stepsAgo: 0,
-    ts: 0
-}));
+const VARS = ['t', 'v', 'a'];
 
-const readRangedLogFromFile = (fileName, range) => readRawLogFromFile(fileName)
-    .then(({ data, stepsAgo, ts }) => ({
-        ts,
-        t: [].map.call(data, (val, i) => {
-            if (!(i % 2)) {
-                const v = val === 0 ? null : Math.round((range[0] + val / VAL_SIZE * (range[1] - range[0])) * PRECISION) / PRECISION;
-                if (data[i + 1] > 1) {
-                    return [v, data[i + 1]];
-                }
-                return v;
+let current = VARS.reduce((current, v) => {
+    current[v] = 0;
+    return current;
+}, {});
+
+setInterval(() => {
+    const stepsFromStartTs = Math.ceil((new Date() - getDayStartTs() * 1000) / STEP);
+
+    VARS.forEach(v => {
+        const fn = getFileName(v);
+        return yadisk.read(getFileName(v)).then(res => {
+            var data = encoder.decode(res);
+            if (data.length < stepsFromStartTs) {
+                console.warn('adding', stepsFromStartTs - data.length, 'extra steps');
+                data.push(...Array.apply([], Array(stepsFromStartTs - data.length)).map(() => data[data.length - 1]));
             }
+            data.push(current[v]);
+            return data;
+        }, err => [...Array.apply([], Array(stepsFromStartTs - 1)).map(() => 0), current[v]]).then(data => {
+            return yadisk.save(fn, encoder.encode(data));
         })
-        .filter(x => x !== undefined)
-    }))
-    .catch(() => ({ ts: 0, t: [] }));
-
-const writeRangedValToFile = (fileName, range, val) => readRawLogFromFile(fileName)
-    .then(({ data, stepsAgo }) => {
-        const rangedVal = Math.round(VAL_SIZE * (val - range[0]) / (range[1] - range[0]));
-        if (data.length < 2) {
-            return fs.writeFile(fileName, Buffer.from(Uint16Array.from([rangedVal, 1]).buffer));
-        }
-
-        const last = data[data.length - 2];
-
-        switch (stepsAgo) {
-            case 0:
-                if (rangedVal !== last) {
-                    data[data.length - 2] = Math.round((rangedVal + last) / 2);
-                }
-                break;
-
-            case 1:
-                if (rangedVal === last) {
-                    data[data.length - 1]++;
-                } else {
-                    newData = new Uint16Array(data.length + 2);
-                    newData.set(data);
-                    newData.set([rangedVal, 1], data.length);
-                    data = newData;
-                }
-                break;
-
-            default:
-                newData = new Uint16Array(data.length + 4);
-                newData.set(data);
-                newData.set([0, stepsAgo - 1, rangedVal, 1], data.length);
-                data = newData;
-        }
-        return fs.writeFile(fileName, Buffer.from(data.buffer, data.byteOffset, data.length * 2));
     });
+}, STEP);
 
-app.get('/', (req, res) => res.send('welcome to istra'));
-
-app.get('/t(/:date?)', (req, res) => {
-    const { date } = req.params;
-    const fn = (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? date : getFileName();
-
-    readRangedLogFromFile(DATA_DIR + '/' + fn, T_RANGE)
-        .then(s => res
-            .set('Access-Control-Allow-Origin', '*')
-            .json(s)
-        );
-});
-
-app.post('/t', (req, res) => {
-    const fileName = DATA_DIR + '/' + getFileName();
+app.post('/d', (req, res) => {
     if (process.env.IP_FILTER && req.ip !== process.env.IP_FILTER) {
-        res.status('403').send('{ error: \'ip-not-allowed\' }');
+        res.status('403').send('{ "error": "ip-not-allowed" }');
     } else {
-        const val = Number(req.body);
+        let vals = {};
 
-        if (isNaN(val)) {
-            res.status('400').send('{ error: \'not-a-number\' }');
-        } else {
-            fs.access(DATA_DIR)
-                .catch(() => fs.mkdir(DATA_DIR))
-                .then(() => writeRangedValToFile(fileName, T_RANGE, val))
-                .then(
-                    () => res.json({ val }),
-                    (err) => res.status(500).json({ error: err.message })
-                );
+        try {
+            vals = JSON.parse(req.body);
+            if (typeof vals !== 'object' ) {
+                res.status('400').send('{ "error": "not-an-object" }');
+            }
+            if (Object.keys(vals).some(k => isNaN(vals[k]))) {
+                res.status('400').send('{ "error": "not-an-object" }');
+            }
+        } catch(e) {
+            res.status('400').send('{ "error": "not-a-valid-json" }');
         }
+
+        VARS.forEach(v => {
+            if (v in vals) {
+                current[v] = vals[v];
+            }
+        });
+        res.status(200).json({ok:true});
     }
 });
+
+app.get('/d', (req, res) => {
+    const ts = getDayStartTs();
+    Promise.all(VARS.map(v => yadisk.read(getFileName(v)).then(r => { console.log(r); console.log(encoder.decode(r)); return encoder.decode(r); })))
+        .then(data => {
+            console.log(data);
+            var json = VARS.reduce((json, v, i) => {
+                json[v] = data[i];
+                return json;
+            }, {
+                ts,
+                delta: STEP
+            });
+
+            res
+                .set('Access-Control-Allow-Origin', '*')
+                .json(json);
+        })
+        .catch(e => {
+            res.send({ ts: 0 });
+        });
+});
+
+app.get('/', (req, res) => res.send('welcome to istra'));
 
 app.listen(process.argv[2] || process.env.PORT || 80);
