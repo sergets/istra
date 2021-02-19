@@ -18,7 +18,7 @@ const getDayStartTs = () => {
     return Math.round(p / 1000);
 };
 
-const VARS = ['t', 'v', 'a'];
+const VARS = ['t', 'h', 'a'];
 
 let current = VARS.reduce((current, v) => {
     current[v] = 0;
