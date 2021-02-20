@@ -21,7 +21,7 @@ module.exports = (login, passwd) => new Promise((resolve, reject) => {
 	    	console.log(JSON.stringify(res.headers));
 
 	    	res.on('data', chunk => {
-	    		console.log('BODY:', chunk);
+	    		console.log('BODY:', chunk.toString());
 	    	});
 
 	    	reject({ message: 'No Session_id cookie found' });
@@ -34,3 +34,5 @@ module.exports = (login, passwd) => new Promise((resolve, reject) => {
 	req.write('login=' + login + '&passwd=' + passwd);
 	req.end();
 });
+
+
