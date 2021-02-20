@@ -22,7 +22,7 @@ const getDayStartTs = () => {
 const DEVICES = {
     'va': process.env.YANDEX_HOME_DEVICE_ID
 };
-const VARS = ['t', 'h', 'v', 'a'];
+const VARS = ['t', 'h', 'v', 'a', 'i'];
 
 let current = VARS.reduce((current, v) => {
     current[v] = 0;
