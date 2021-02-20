@@ -60,7 +60,7 @@ setTimeout(() => {
                         current[valueLetters[1]] = amperage;
                     })
                     .catch(e => {
-                        console.log(e);
+                        console.log('Error while getting yandex home:', e);
                         current[valueLetters[0]] = 0;
                         current[valueLetters[1]] = 0;
                     });
@@ -100,7 +100,6 @@ app.get('/d', (req, res) => {
     const ts = getDayStartTs();
     Promise.all(VARS.map(v => yadisk.read(getFileName(v)).then(r => { console.log(r); console.log(encoder.decode(r)); return encoder.decode(r); })))
         .then(data => {
-            console.log(data);
             var json = VARS.reduce((json, v, i) => {
                 json[v] = data[i];
                 return json;
