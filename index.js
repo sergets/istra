@@ -1,6 +1,7 @@
 const yadisk = require('./yadisk');
 const encoder = require('./encoder');
 const express = require('express');
+const yandexSession = require('./yandex-login')(process.env.YANDEX_LOGIN, process.env.YANDEX_PASSWORD);
 const fetch = require('node-fetch');
 
 const STEP = (process.env.STEP || 10) * 1000;
@@ -18,7 +19,10 @@ const getDayStartTs = () => {
     return Math.round(p / 1000);
 };
 
-const VARS = ['t', 'h', 'a'];
+const DEVICES = {
+    'va': process.env.YANDEX_HOME_DEVICE_ID
+};
+const VARS = ['t', 'h', 'v', 'a'];
 
 let current = VARS.reduce((current, v) => {
     current[v] = 0;
@@ -43,6 +47,27 @@ setInterval(() => {
         })
     });
 }, STEP);
+
+setTimeout(() => {
+    setInterval(() => {
+        yandexSession.then(session => {
+            Object.keys(DEVICES).forEach(valueLetters => {
+                fetch('https://iot.quasar.yandex.ru/m/user/devices/' + DEVICES[valueLetters], { headers: { 'Cookie': 'Session_id=' + yandexSession } })
+                    .then(res => res.json())
+                    .then(json => ['voltage', 'amperage'].map(key => json.properties.find(property => property.parameters.instance === key).state.value))
+                    .then(([voltage, amperage]) => {
+                        current[valueLetters[0]] = voltage;
+                        current[valueLetters[1]] = amperage;
+                    })
+                    .catch(e => {
+                        console.log(e);
+                        current[valueLetters[0]] = 0;
+                        current[valueLetters[1]] = 0;
+                    });
+            });
+        });
+    }, STEP);
+}, STEP / 2);
 
 app.post('/d', (req, res) => {
     if (process.env.IP_FILTER && req.ip !== process.env.IP_FILTER) {
