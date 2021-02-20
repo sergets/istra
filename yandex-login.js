@@ -16,7 +16,14 @@ module.exports = (login, passwd) => new Promise((resolve, reject) => {
 	    if (sessionIdCookie) {
 	    	resolve(sessionIdCookie.replace(/;(.*)$/, '').replace(/^Session_id=/, ''));
 	    } else {
+
 	    	console.log('No Session_id cookie found');
+	    	console.log(JSON.stringify(res.headers));
+
+	    	res.on('data', chunk => {
+	    		console.log('BODY:', chunk);
+	    	});
+
 	    	reject({ message: 'No Session_id cookie found' });
 	    }
 	});
