@@ -37,7 +37,6 @@ setInterval(() => {
         return yadisk.read(getFileName(v)).then(res => {
             var data = encoder.decode(res);
             if (data.length < stepsFromStartTs) {
-                console.warn('adding', stepsFromStartTs - data.length, 'extra steps');
                 data.push(...Array.apply([], Array(stepsFromStartTs - data.length)).map(() => data[data.length - 1]));
             }
             data.push(current[v]);
@@ -52,10 +51,12 @@ setTimeout(() => {
     setInterval(() => {
         yandexSession.then(session => {
             Object.keys(DEVICES).forEach(valueLetters => {
+                console.log('getting voltage and amperage for', valueLetters, DEVICES[valueLetters]);
                 fetch('https://iot.quasar.yandex.ru/m/user/devices/' + DEVICES[valueLetters], { headers: { 'Cookie': 'Session_id=' + yandexSession } })
                     .then(res => res.json())
                     .then(json => ['voltage', 'amperage'].map(key => json.properties.find(property => property.parameters.instance === key).state.value))
                     .then(([voltage, amperage]) => {
+                        console.log('got voltage and amperage');
                         current[valueLetters[0]] = voltage;
                         current[valueLetters[1]] = amperage;
                     })
@@ -98,7 +99,7 @@ app.post('/d', (req, res) => {
 
 app.get('/d', (req, res) => {
     const ts = getDayStartTs();
-    Promise.all(VARS.map(v => yadisk.read(getFileName(v)).then(r => { console.log(r); console.log(encoder.decode(r)); return encoder.decode(r); })))
+    Promise.all(VARS.map(v => yadisk.read(getFileName(v)).then(r => encoder.decode(r))))
         .then(data => {
             var json = VARS.reduce((json, v, i) => {
                 json[v] = data[i];
