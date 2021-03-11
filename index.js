@@ -118,6 +118,34 @@ app.get('/d', (req, res) => {
         });
 });
 
+app.get('/d/:date', (req, res) => {
+    const date = req.params.date;
+    const ts = +(new Date(date));
+    if (isNaN(ts)) {
+        res
+            .set('Access-Control-Allow-Origin', '*')
+            .status(400)
+            .send('{"error":"invalid-date-format"}');
+    }
+    Promise.all(VARS.map(v => yadisk.read(v + date).then(r => encoder.decode(r))))
+        .then(data => {
+            var json = VARS.reduce((json, v, i) => {
+                json[v] = data[i];
+                return json;
+            }, {
+                ts,
+                delta: STEP
+            });
+
+            res
+                .set('Access-Control-Allow-Origin', '*')
+                .json(json);
+        })
+        .catch(e => {
+            res.send({ ts: 0 });
+        });
+});
+
 app.get('/', (req, res) => res.send('welcome to istra'));
 
 app.listen(process.argv[2] || process.env.PORT || 80);
