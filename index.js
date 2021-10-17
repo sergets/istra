@@ -1,7 +1,7 @@
 const yadisk = require('./yadisk');
 const encoder = require('./encoder');
 const express = require('express');
-const yandexSession = require('./yandex-login')(process.env.YANDEX_LOGIN, process.env.YANDEX_PASSWORD);
+// const yandexSession = require('./yandex-login')(process.env.YANDEX_LOGIN, process.env.YANDEX_PASSWORD);
 const fetch = require('node-fetch');
 
 const STEP = (process.env.STEP || 10) * 1000;
