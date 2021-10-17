@@ -47,6 +47,7 @@ setInterval(() => {
     });
 }, STEP);
 
+/*
 setTimeout(() => {
     setInterval(() => {
         yandexSession.then(session => {
@@ -69,6 +70,7 @@ setTimeout(() => {
         });
     }, STEP);
 }, STEP / 2);
+*/
 
 app.post('/d', (req, res) => {
     if (process.env.IP_FILTER && req.ip !== process.env.IP_FILTER) {
