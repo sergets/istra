@@ -34,14 +34,14 @@ setInterval(() => {
     VARS.forEach(v => {
         const fn = getFileName(v);
         return yadisk.read(getFileName(v)).then(res => {
-            var data = res;
+            var data = JSON.parse(res);
             if (data.length < stepsFromStartTs) {
                 data.push(...Array.apply([], Array(stepsFromStartTs - data.length)).map(() => data[data.length - 1]));
             }
             data.push(current[v]);
             return data;
         }, err => [...Array.apply([], Array(stepsFromStartTs - 1)).map(() => 0), current[v]]).then(data => {
-            return yadisk.save(fn, data);
+            return yadisk.save(fn, JSON.stringify(data));
         })
     });
 }, STEP);
@@ -100,7 +100,7 @@ app.post('/d', (req, res) => {
 
 app.get('/d', (req, res) => {
     const ts = getDayStartTs();
-    Promise.all(VARS.map(v => yadisk.read(getFileName(v))))
+    Promise.all(VARS.map(v => yadisk.read(getFileName(v)).then(JSON.parse)))
         .then(data => {
             var json = VARS.reduce((json, v, i) => {
                 json[v] = data[i];
@@ -128,7 +128,7 @@ app.get('/d/:date', (req, res) => {
             .status(400)
             .send('{"error":"invalid-date-format"}');
     }
-    Promise.all(VARS.map(v => yadisk.read(v + date)))
+    Promise.all(VARS.map(v => yadisk.read(v + date).then(JSON.parse)))
         .then(data => {
             var json = VARS.reduce((json, v, i) => {
                 json[v] = data[i];
