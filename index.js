@@ -1,5 +1,4 @@
 const yadisk = require('./yadisk');
-const encoder = require('./encoder');
 const express = require('express');
 // const yandexSession = require('./yandex-login')(process.env.YANDEX_LOGIN, process.env.YANDEX_PASSWORD);
 const fetch = require('node-fetch');
@@ -35,14 +34,14 @@ setInterval(() => {
     VARS.forEach(v => {
         const fn = getFileName(v);
         return yadisk.read(getFileName(v)).then(res => {
-            var data = encoder.decode(res);
+            var data = res;
             if (data.length < stepsFromStartTs) {
                 data.push(...Array.apply([], Array(stepsFromStartTs - data.length)).map(() => data[data.length - 1]));
             }
             data.push(current[v]);
             return data;
         }, err => [...Array.apply([], Array(stepsFromStartTs - 1)).map(() => 0), current[v]]).then(data => {
-            return yadisk.save(fn, encoder.encode(data));
+            return yadisk.save(fn, data);
         })
     });
 }, STEP);
@@ -101,7 +100,7 @@ app.post('/d', (req, res) => {
 
 app.get('/d', (req, res) => {
     const ts = getDayStartTs();
-    Promise.all(VARS.map(v => yadisk.read(getFileName(v)).then(r => encoder.decode(r))))
+    Promise.all(VARS.map(v => yadisk.read(getFileName(v))))
         .then(data => {
             var json = VARS.reduce((json, v, i) => {
                 json[v] = data[i];
@@ -129,7 +128,7 @@ app.get('/d/:date', (req, res) => {
             .status(400)
             .send('{"error":"invalid-date-format"}');
     }
-    Promise.all(VARS.map(v => yadisk.read(v + date).then(r => encoder.decode(r))))
+    Promise.all(VARS.map(v => yadisk.read(v + date)))
         .then(data => {
             var json = VARS.reduce((json, v, i) => {
                 json[v] = data[i];
