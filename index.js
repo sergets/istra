@@ -156,13 +156,13 @@ app.get('/rec/:camport/:folder', (req, res) => {
             REC_INTERVALS[req.params.camport] = setInterval(() => {
                 yadisk.upload(
                     'rec/' + req.params.folder + '/pic_' + (c++) + '.jpg',
-                    'http://' + process.env.IP_FILTER + ':' + req.params.camport + '/snapshot.cgi?user=admin&pwd=' + req.query.pwd + '&res=0'
+                    'http://' + process.env.IP + ':' + req.params.camport + '/snapshot.cgi?user=admin&pwd=' + req.query.pwd + '&res=0'
                 );
             }, req.query.interval || 3000);
             res.send({ 
                 ok: 'started',
                 interval: REC_INTERVALS[req.params.camport],
-                path: 'http://' + process.env.IP_FILTER + ':' + req.params.camport + '/snapshot.cgi?user=admin&pwd=' + req.query.pwd + '&res=0'
+                path: 'http://' + process.env.IP + ':' + req.params.camport + '/snapshot.cgi?user=admin&pwd=' + req.query.pwd + '&res=0'
             });
         });
     } else {
