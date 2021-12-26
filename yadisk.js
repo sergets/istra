@@ -6,20 +6,41 @@ const TOKEN = process.env.YANDEX_TOKEN;
 module.exports = {
     save: function(path, content) {
         return callApi('upload', {
-            path : 'app:/' + path,
-            overwrite : true
+            path: 'app:/' + path,
+            overwrite: true
         }).then(function(res) {
             return request({
-                uri : res.href,
-                method : 'PUT',
-                body : content
+                uri: res.href,
+                method: 'PUT',
+                body: content
             });
+        });
+    },
+
+    upload: function(path, url) {
+        return callApi('upload', {
+            path: 'app:/' + path,
+            url: url
+        }, 'POST').then(function(data) {
+            return data;
+        }, function(err) {
+            return {};
+        });
+    },
+
+    mkdir: function(path) {
+        return callApi('', {
+            path: 'app:/' + path
+        }, 'PUT').then(function(data) {
+            return data;
+        }, function(err) {
+            return {};
         });
     },
 
     getData: function(path) {
         return callApi('', {
-            path : 'app:/' + path
+            path: 'app:/' + path
         }).then(function(data) {
             return data;
         }, function(err) {
@@ -29,24 +50,25 @@ module.exports = {
 
     read: function(path) {
         return callApi('download', {
-            path : 'app:/' + path,
-            sort : 'created'
+            path: 'app:/' + path,
+            sort: 'created'
         }).then(function(res) {
             return request({
-                uri : res.href,
-                method : res.method
+                uri: res.href,
+                method: res.method
             });
         });
     }
 }
 
-function callApi(method, query) {
+function callApi(apiMethod, query, httpMethod) {
     return request({
-        uri : [BASE_URL, method].filter(Boolean).join('/'),
-        headers : {
-            'Authorization' : 'OAuth ' + TOKEN
+        method: httpMethod,
+        uri: [BASE_URL, apiMethod].filter(Boolean).join('/'),
+        headers: {
+            'Authorization': 'OAuth ' + TOKEN
         },
-        qs : query,
-        json : true
+        qs: query,
+        json: true
     });
 }
