@@ -147,6 +147,35 @@ app.get('/d/:date', (req, res) => {
         });
 });
 
+const REC_INTERVALS = {};
+
+app.get('/rec/:camport/:folder', (req, res) => {
+    if (!REC_INTERVALS[req.params.camport]) {
+        yadisk.mkdir('rec/' + req.params.folder).then(() => {
+            let c = 0;
+            REC_INTERVALS[req.params.camport] = setInterval(() => {
+                yadisk.upload(
+                    'rec/' + req.params.folder + '/pic_' + (c++) + '.jpg',
+                    'http://' + process.env.IP_FILTER + ':' + req.params.camport + '/snapshot.cgi?user=admin&pwd=' + req.query.pwd + '&res=0'
+                );
+            }, req.query.interval || 3000);
+            res.send({ ok: 'started' });
+        });
+    } else {
+        res.send({ err: 'already recording' });
+    }
+});
+
+app.get('/stop/:camport', (req, res) => {
+    if (REC_INTERVALS[req.params.camport]) {
+        clearInterval(REC_INTERVALS[req.params.camport]);
+        delete REC_INTERVALS[req.params.camport];
+        res.send({ ok: 'stopped' });
+    } else {
+        res.send({ err: 'was not recording' });
+    }
+});
+
 app.get('/', (req, res) => res.send('welcome to istra'));
 
 app.listen(process.argv[2] || process.env.PORT || 80);
