@@ -158,17 +158,15 @@ app.get('/rec/:camport/:folder', (req, res) => {
                     'rec/' + req.params.folder + '/pic_' + (c++) + '.jpg',
                     'http://' + process.env.IP + ':' + req.params.camport + '/snapshot.cgi?user=admin&pwd=' + req.query.pwd + '&res=0'
                 );
-            }, req.query.interval || 3000);
-            res.json({ 
+            }, req.query.interval || 5000);
+            res.json({
                 ok: 'started',
-                interval: REC_INTERVALS[req.params.camport],
                 path: 'http://' + process.env.IP + ':' + req.params.camport + '/snapshot.cgi?user=admin&pwd=' + req.query.pwd + '&res=0'
-            });
+            }).end();
         });
     } else {
         res.json({ 
-            err: 'already recording', 
-            interval: REC_INTERVALS[req.params.camport]
+            err: 'already recording'
         });
     }
 });
